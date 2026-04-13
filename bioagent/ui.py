@@ -89,12 +89,18 @@ def build_chat_tab():
             response_text = ""
             history.append({"role": "assistant", "content": ""})
 
-            for chunk in chat_turn(client, session, message, file_paths):
-                response_text += chunk
-                history[-1] = {"role": "assistant", "content": response_text}
-                yield history, history, session, ""
+            try:
+                for chunk in chat_turn(client, session, message, file_paths):
+                    response_text += chunk
+                    history[-1] = {"role": "assistant", "content": response_text}
+                    yield history, history, session, ""
+                save_session(session)
+            except Exception as e:
+                import traceback
+                err_text = f"**Error:**\n```\n{traceback.format_exc()}\n```"
+                history[-1] = {"role": "assistant", "content": err_text}
+                print(traceback.format_exc())  # also prints to Colab cell output
 
-            save_session(session)
             yield history, history, session, ""
 
         send_btn.click(
@@ -161,18 +167,25 @@ def build_deep_research_tab():
         accumulated = gr.State("")
 
         def start_research(topic, api_key):
+            import traceback
             client, err = _get_client(api_key)
             if err:
-                return err, None, "", f"Error: {err}"
+                yield err, None, "", f"Error: {err}"
+                return
 
             session = start_session(topic)
             output = ""
-            for chunk in deep_research_turn(client, session, file_paths=[]):
-                output += chunk
-                yield output, session, output, f"Iteration {session['iteration']} / {MAX_ITERATIONS}"
-
-            save_session(session)
-            yield output, session, output, f"Iteration {session['iteration']} / {MAX_ITERATIONS} — ready to continue or stop"
+            try:
+                for chunk in deep_research_turn(client, session, file_paths=[]):
+                    output += chunk
+                    yield output, session, output, f"Iteration {session['iteration']} / {MAX_ITERATIONS}"
+                save_session(session)
+                yield output, session, output, f"Iteration {session['iteration']} / {MAX_ITERATIONS} — ready to continue or stop"
+            except Exception:
+                tb = traceback.format_exc()
+                print(tb)
+                output += f"\n\n**Error:**\n```\n{tb}\n```"
+                yield output, session, output, "Error — see traceback above"
 
         def continue_research(steer, files, session, acc, api_key):
             if session is None:
