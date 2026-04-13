@@ -96,6 +96,9 @@ For each finding, cite the paper title, authors, year, and a brief summary.
 Focus on primary research. Be concise but thorough.
 """
 
+_SEARCH_TOOL = types.Tool(google_search=types.GoogleSearch())
+
+
 def run_literature(client: genai.Client, topic: str, context: str = "") -> str:
     """Search literature using Gemini Search Grounding. Returns findings as text."""
     query = f"Recent scientific research on: {topic}"
@@ -107,14 +110,17 @@ def run_literature(client: genai.Client, topic: str, context: str = "") -> str:
         contents=query,
         config=types.GenerateContentConfig(
             system_instruction=LITERATURE_SYSTEM,
-            tools=[types.Tool(google_search=types.GoogleSearch())],
+            tools=[_SEARCH_TOOL],
         ),
     )
     return _text(response)
 
 
 def stream_literature(client: genai.Client, topic: str, context: str = "") -> Generator[str, None, None]:
-    """Streaming version for live Gradio display."""
+    """Streaming version for live Gradio display.
+
+    Search grounding chunks may have empty candidates; we skip those safely.
+    """
     query = f"Recent scientific research on: {topic}"
     if context:
         query += f"\n\nFocus especially on: {context}"
@@ -124,11 +130,15 @@ def stream_literature(client: genai.Client, topic: str, context: str = "") -> Ge
         contents=query,
         config=types.GenerateContentConfig(
             system_instruction=LITERATURE_SYSTEM,
-            tools=[types.Tool(google_search=types.GoogleSearch())],
+            tools=[_SEARCH_TOOL],
         ),
     ):
-        if chunk.text:
-            yield chunk.text
+        try:
+            text = chunk.text
+        except (AttributeError, ValueError):
+            continue
+        if text:
+            yield text
 
 
 # ---------------------------------------------------------------------------
@@ -264,5 +274,9 @@ def stream_reply(
         contents="\n".join(parts),
         config=types.GenerateContentConfig(system_instruction=REPLY_SYSTEM),
     ):
-        if chunk.text:
-            yield chunk.text
+        try:
+            text = chunk.text
+        except (AttributeError, ValueError):
+            continue
+        if text:
+            yield text
