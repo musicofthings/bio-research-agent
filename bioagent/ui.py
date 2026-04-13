@@ -278,6 +278,7 @@ def build_sessions_tab():
 
 def launch(share: bool = False, server_port: int = 7860) -> None:
     """Build and launch the Gradio app."""
+    gr.close_all()  # release any port held by a previous launch in this session
 
     with gr.Blocks(title="Bio Research Agent", theme=gr.themes.Soft()) as app:
         gr.Markdown(
