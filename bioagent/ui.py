@@ -303,4 +303,4 @@ def launch(share: bool = False, server_port: int = 7860) -> None:
         build_deep_research_tab()
         build_sessions_tab()
 
-    app.launch(share=share, server_port=server_port)
+    app.launch(share=share, server_port=server_port, debug=True)
